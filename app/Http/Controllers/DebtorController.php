@@ -8,9 +8,7 @@ use Illuminate\Http\Request;
 
 class DebtorController extends Controller
 {
-    /**
-     * Generate a unique 5-digit debt ID.
-     */
+
     protected function generateDebtId()
     {
         do {
@@ -20,9 +18,7 @@ class DebtorController extends Controller
         return $debtId;
     }
 
-    /**
-     * Store a new debtor.
-     */
+
     public function store(Request $request)
     {
         $request->validate([
@@ -36,13 +32,9 @@ class DebtorController extends Controller
             'debt_type' => 'required|in:receivable,payable'
         ]);
 
-        // Generate a unique debt ID
-        
-
-        // Create a new debtor record
         $debtor = Debtor::create(array_merge($request->all()));
 
-        // Return a success response
+
         return response()->json([
             'success' => true,
             'message' => 'Debtor information stored successfully.',
@@ -50,9 +42,7 @@ class DebtorController extends Controller
         ], 201);
     }
 
-    /**
-     * Display a list of debtors.
-     */
+
     public function index(Request $request)
 {
     $isArchived = $request->query('is_archived', false); // Default: show active
@@ -71,25 +61,24 @@ class DebtorController extends Controller
     ]);
 }
 
-    /**
- * Update a debtor's information.
- */
+
 public function update(Request $request, $id)
 {
-    // Validate the incoming request
+
     $request->validate([
         'name' => 'nullable|string|max:255',
         'contact_number' => 'nullable|string|max:15',
-        'email' => 'nullable|email|unique:debtors,email,' . $id, // Ensure email is unique except for this debtor
+        'email' => 'nullable|email|unique:debtors,email,' . $id, 
         'amount_to_borrow' => 'nullable|numeric|min:0',
-        'duration_of_payment' => 'nullable|integer|min:1',
+        'start_date' => 'nullable|required|date',
+            'due_date' => 'nullable|required|date',
         'interest_rate' => 'nullable|numeric|min:0|max:100',
     ]);
 
-    // Find the debtor by ID
+
     $debtor = Debtor::find($id);
 
-    // Check if the debtor exists
+
     if (!$debtor) {
         return response()->json([
             'success' => false,
@@ -97,25 +86,23 @@ public function update(Request $request, $id)
         ], 404);
     }
 
-    // Update the debtor's information
+
     $debtor->update($request->all());
 
-    // Return a success response
+
     return response()->json([
         'success' => true,
         'message' => 'Debtor information updated successfully.',
         'data' => $debtor,
     ]);
 }
-/**
- * Archive or unarchive a debtor.
- */
+
 public function archive($id)
 {
-    // Find the debtor by ID
+
     $debtor = Debtor::find($id);
 
-    // Check if the debtor exists
+
     if (!$debtor) {
         return response()->json([
             'success' => false,
@@ -123,20 +110,18 @@ public function archive($id)
         ], 404);
     }
 
-    // Toggle the `is_archived` status
+
     $debtor->is_archived = !$debtor->is_archived;
     $debtor->save();
 
-    // Return a success response
+
     return response()->json([
         'success' => true,
         'message' => $debtor->is_archived ? 'Debtor archived successfully.' : 'Debtor unarchived successfully.',
         'data' => $debtor,
     ]);
 }
-/**
- * Display the specified debtor.
- */
+
 public function show($id)
 {
     $debtor = Debtor::find($id);
@@ -164,12 +149,8 @@ public function show($id)
         ],
     ]);
 }
-/**
- * Get a list of receivable debtors.
- */
-/**
- * Get a list of receivable debtors that are not archived.
- */
+
+
 public function receivables()
 {
     $debtors = Debtor::where('debt_type', 'receivable')
@@ -191,9 +172,7 @@ public function receivables()
 }
 
 
-/**
- * Get a list of payable debtors.
- */
+
 public function payables()
 {
     $debtors = Debtor::where('debt_type', 'payable')

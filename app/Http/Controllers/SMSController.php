@@ -16,20 +16,17 @@ class SMSController extends Controller
                 'message' => 'required|string',
             ]);
 
-            // Base configuration
             $baseUrl = 'http://192.168.1.6:8082';
             $token = 'd1f02324-c1fa-4490-9059-c2860ac5df6d';
 
-            // First, try to authenticate/verify connection
             $testResponse = Http::get($baseUrl);
             Log::info('Testing Gateway Connection', [
                 'status' => $testResponse->status(),
                 'body' => $testResponse->body()
             ]);
 
-            // Send SMS with modified headers
             $response = Http::withHeaders([
-                'X-API-KEY' => $token,  // Try alternative header
+                'X-API-KEY' => $token,  
                 'Content-Type' => 'application/json'
             ])->post($baseUrl . '/send', [
                 'to' => $validated['to'],
@@ -50,9 +47,8 @@ class SMSController extends Controller
                 ], 200);
             }
 
-            // If first attempt fails, try alternative authentication
             $alternativeResponse = Http::withHeaders([
-                'Authorization' => $token,  // Try without Bearer
+                'Authorization' => $token,
                 'Content-Type' => 'application/json'
             ])->post($baseUrl . '/send', [
                 'to' => $validated['to'],

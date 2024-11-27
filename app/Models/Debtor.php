@@ -19,14 +19,9 @@ class Debtor extends Model
         'due_date',
         'interest_rate',
         'is_archived',
-        'debt_type', // New column
+        'debt_type',
     ];
-    
-    /**
-     * Get the total amount including interest.
-     *
-     * @return float
-     */
+
     public function getTotalAmountAttribute()
     {
         $interest = ($this->amount_to_borrow * $this->interest_rate) / 100;
