@@ -15,7 +15,7 @@ return [
     */
     'sms' => [
         'url' => env('SMS_GATEWAY_URL', 'http://192.168.1.6:8082'),
-        'token' => env('SMS_GATEWAY_TOKEN', 'f81a4663-0d18-4667-9327-9fa284a71132'),
+        'token' => env('SMS_GATEWAY_TOKEN', 'd1f02324-c1fa-4490-9059-c2860ac5df6d'),
     ],
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),

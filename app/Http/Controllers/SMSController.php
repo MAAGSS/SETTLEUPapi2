@@ -18,7 +18,7 @@ class SMSController extends Controller
 
             // Base configuration
             $baseUrl = 'http://192.168.1.6:8082';
-            $token = 'f81a4663-0d18-4667-9327-9fa284a71132';
+            $token = 'd1f02324-c1fa-4490-9059-c2860ac5df6d';
 
             // First, try to authenticate/verify connection
             $testResponse = Http::get($baseUrl);
