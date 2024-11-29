@@ -15,6 +15,8 @@ class CreateDebtorsTable extends Migration
     {
         Schema::create('debtors', function (Blueprint $table) {
             $table->id(); // Primary key
+            $table->unsignedBigInteger('usr_id'); // Foreign key column
+            $table->foreign('usr_id')->references('id')->on('users')->onDelete('cascade'); // Foreign key constraint
             $table->string('name'); // Debtor's name
             $table->string('contact_number', 15); // Debtor's contact number
             $table->string('email')->unique(); // Debtor's email

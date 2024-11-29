@@ -6,7 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SMSController;
 use App\Http\Controllers\DebtorController;
 
-
+Route::middleware('auth:sanctum')->group(function () {
 Route::get('/debtors/receivables', [DebtorController::class, 'receivables']);
 Route::get('/debtors/payables', [DebtorController::class, 'payables']);
 
@@ -24,7 +24,7 @@ Route::get('/debtors', [DebtorController::class, 'index']);
 Route::post('/debtors', [DebtorController::class, 'store']);
 
 Route::post('/send-sms', [SMSController::class, 'sendSMS']);
-
+});
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);

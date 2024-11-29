@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Debtor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class DebtorController extends Controller
 {
@@ -21,6 +22,14 @@ class DebtorController extends Controller
 
     public function store(Request $request)
     {
+        // Ensure user is authenticated
+        if (!auth()->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User must be authenticated'
+            ], 401);
+        }
+    
         $request->validate([
             'name' => 'required|string|max:255',
             'contact_number' => 'required|string|max:15',
@@ -31,9 +40,11 @@ class DebtorController extends Controller
             'interest_rate' => 'required|numeric|min:0|max:100',
             'debt_type' => 'required|in:receivable,payable'
         ]);
-
-        $debtor = Debtor::create(array_merge($request->all()));
-
+    
+        $debtor = Debtor::create(array_merge(
+            $request->all(),
+            ['usr_id' => auth()->id()] // This uses Sanctum's authenticated user
+        ));
 
         return response()->json([
             'success' => true,
@@ -46,7 +57,10 @@ class DebtorController extends Controller
     public function index(Request $request)
 {
     $isArchived = $request->query('is_archived', false); // Default: show active
-    $debtors = Debtor::where('is_archived', $isArchived)->get();
+
+    $debtors = Debtor::where('usr_id', Auth::id()) // Filter by user ID
+                     ->where('is_archived', $isArchived)
+                     ->get();
 
     $result = $debtors->map(function ($debtor) {
         return [
@@ -76,7 +90,7 @@ public function update(Request $request, $id)
     ]);
 
 
-    $debtor = Debtor::find($id);
+    $debtor = Debtor::where('id', $id)->where('usr_id', Auth::id())->first();
 
 
     if (!$debtor) {
@@ -100,7 +114,7 @@ public function update(Request $request, $id)
 public function archive($id)
 {
 
-    $debtor = Debtor::find($id);
+    $debtor = Debtor::where('id', $id)->where('usr_id', Auth::id())->first();
 
 
     if (!$debtor) {
@@ -124,7 +138,7 @@ public function archive($id)
 
 public function show($id)
 {
-    $debtor = Debtor::find($id);
+    $debtor = Debtor::where('id', $id)->where('usr_id', Auth::id())->first();
 
     if (!$debtor) {
         return response()->json([
@@ -153,9 +167,11 @@ public function show($id)
 
 public function receivables()
 {
-    $debtors = Debtor::where('debt_type', 'receivable')
-                     ->where('is_archived', false) // Exclude archived debtors
-                     ->get();
+    $debtors = Debtor::where('usr_id', Auth::id())
+                 ->where('debt_type', 'receivable') // Or 'payable'
+                 ->where('is_archived', false)
+                 ->get();
+
 
     return response()->json([
         'success' => true,
@@ -175,9 +191,11 @@ public function receivables()
 
 public function payables()
 {
-    $debtors = Debtor::where('debt_type', 'payable')
-                     ->where('is_archived', false) // Exclude archived debtors
-                     ->get();
+    $debtors = Debtor::where('usr_id', Auth::id())
+                 ->where('debt_type', 'payable') // Or 'payable'
+                 ->where('is_archived', false)
+                 ->get();
+
 
     return response()->json([
         'success' => true,

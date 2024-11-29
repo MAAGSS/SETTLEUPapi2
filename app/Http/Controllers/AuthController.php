@@ -81,27 +81,24 @@ public function verifyOtp(Request $request)
 }
 public function login(Request $request)
 {
-    $validator = Validator::make($request->all(), [
-        'email' => 'required|string|email',
-        'password' => 'required|string',
+    $credentials = $request->validate([
+        'email' => 'required|email',
+        'password' => 'required|string'
     ]);
 
-    if ($validator->fails()) {
-        return response()->json($validator->errors(), 400);
+    if (!Auth::attempt($credentials)) {
+        return response()->json([
+            'message' => 'Invalid login credentials'
+        ], 401);
     }
 
+    $user = $request->user();
+    $token = $user->createToken('API Token')->plainTextToken;
 
-    if (!Auth::attempt($request->only('email', 'password'))) {
-        return response()->json(['message' => 'Invalid login credentials'], 401);
-    }
-
-   
-
-    
-    $user = Auth::user();
-    
-
-    return response()->json(['message' => 'Successfully logged in']);
+    return response()->json([
+        'user' => $user,
+        'token' => $token
+    ]);
 }
 
 // otp for login if want
