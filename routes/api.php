@@ -22,9 +22,10 @@ Route::get('/debtors', [DebtorController::class, 'index']);
 
 
 Route::post('/debtors', [DebtorController::class, 'store']);
-Route::post('/send-sms-reminder/{debtorId}', [SMSController::class, 'sendReminder']);
+
 Route::post('/send-sms', [SMSController::class, 'sendSMS']);
 });
+Route::post('/send-sms-reminder/{debtorId}', [SMSController::class, 'sendReminder']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
