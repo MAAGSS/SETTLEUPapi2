@@ -24,6 +24,8 @@ class CreateDebtorsTable extends Migration
             $table->date('start_date');
             $table->date('due_date');
             $table->decimal('interest_rate', 5, 2);
+            $table->decimal('total_amount', 10, 2)->default(0);
+            $table->boolean('is_paid')->default(false);
             $table->boolean('is_archived')->default(false);
             $table->enum('debt_type', ['receivable', 'payable'])->default('receivable');
             $table->timestamps(); // Created at and Updated at timestamps

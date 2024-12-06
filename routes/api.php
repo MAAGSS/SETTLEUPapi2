@@ -7,6 +7,8 @@ use App\Http\Controllers\SMSController;
 use App\Http\Controllers\DebtorController;
 
 Route::middleware('auth:sanctum')->group(function () {
+Route::post('/debtors/{id}/payment', [DebtorController::class, 'makePayment']);
+Route::get('/debtor-contacts', [DebtorController::class, 'showContacts']);
 Route::get('/debtors/receivables', [DebtorController::class, 'receivables']);
 Route::get('/debtors/payables', [DebtorController::class, 'payables']);
 
