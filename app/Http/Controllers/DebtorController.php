@@ -1,4 +1,4 @@
-<?php
+<?
 
 namespace App\Http\Controllers;
 
@@ -51,13 +51,18 @@ class DebtorController extends Controller
                    ($request->amount_to_borrow * $request->interest_rate / 100);
 
     // Create debtor record
-    $debtor = Debtor::create(array_merge(
-        $request->all(),
-        [
-            'usr_id' => auth()->id(),
-            'total_amount' => $totalAmount
-        ]
-    ));
+    $debtor = Debtor::create([
+        'usr_id' => auth()->id(),
+        'name' => $request->name,
+        'contact_number' => $request->contact_number,
+        'email' => $request->email,
+        'amount_to_borrow' => $request->amount_to_borrow,
+        'start_date' => $request->start_date,
+        'due_date' => $request->due_date,
+        'interest_rate' => $request->interest_rate,
+        'debt_type' => $request->debt_type,
+        'total_amount' => $totalAmount // Explicitly assign the calculated total amount
+    ]);
 
     return response()->json([
         'success' => true,
@@ -68,6 +73,7 @@ class DebtorController extends Controller
         ],
     ], 201);
 }
+
 
     public function index(Request $request)
 {
@@ -243,79 +249,92 @@ public function showContacts(Request $request)
         ]);
     }
     public function makePayment(Request $request, $id)
-{
-    // Validate the payment input
-    $request->validate([
-        'payment_amount' => 'required|numeric|min:0.01'
-    ]);
-
-    // Find the specific debtor
-    $debtor = Debtor::where('id', $id)->where('usr_id', Auth::id())->first();
-
-    // Check if debtor exists
-    if (!$debtor) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Debtor not found.',
-        ], 404);
+    {
+        // Validate the payment input
+        $request->validate([
+            'payment_amount' => 'required|numeric|min:0.01'
+        ]);
+    
+        // Find the specific debtor for the authenticated user
+        $debtor = Debtor::where('id', $id)
+            ->where('usr_id', Auth::id())
+            ->first();
+    
+        // Check if debtor exists
+        if (!$debtor) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Debtor not found.',
+            ], 404);
+        }
+    
+        // Get the payment amount
+        $paymentAmount = $request->input('payment_amount');
+    
+        // Ensure payment doesn't exceed remaining balance
+        if ($paymentAmount > $debtor->total_amount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment amount cannot exceed the remaining debt.',
+            ], 400);
+        }
+    
+        // Check if payment is made before the due date
+        $isEarlyPayment = now()->lt($debtor->due_date);
+    
+        // Find associated debtor contact
+        $debtorContact = DebtorContact::where('email', $debtor->email)
+            ->where('usr_id', Auth::id())
+            ->first();
+    
+        // Start a database transaction for consistency
+        \DB::beginTransaction();
+    
+        try {
+            // Deduct the payment amount from the total debt
+            $debtor->total_amount -= $paymentAmount;
+    
+            // If fully paid, mark as paid
+            if ($debtor->total_amount <= 0) {
+                $debtor->is_paid = true;
+                $debtor->total_amount = 0; // Ensure no negative balance
+            }
+    
+            $debtor->save();
+    
+            // Update credit score if payment is early and contact exists
+            if ($isEarlyPayment && $debtorContact) {
+                $debtorContact->credit_score = min(100, $debtorContact->credit_score + 2);
+                $debtorContact->save();
+            }
+    
+            // Send payment confirmation email
+            Mail::to($debtor->email)->send(new PaymentConfirmationMail($debtor, $paymentAmount));
+    
+            // Commit the transaction
+            \DB::commit();
+    
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment recorded successfully.',
+                'data' => [
+                    'debtor' => $debtor,
+                    'payment_amount' => $paymentAmount,
+                    'remaining_balance' => $debtor->total_amount,
+                    'credit_score_updated' => $isEarlyPayment ? 'Yes' : 'No',
+                ],
+            ]);
+        } catch (\Exception $e) {
+            // Rollback the transaction in case of an error
+            \DB::rollBack();
+    
+            // Log the error
+            \Log::error('Error during payment processing: ' . $e->getMessage());
+    
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process the payment. Please try again later.',
+            ], 500);
+        }
     }
-
-    // Get the payment amount
-    $paymentAmount = $request->input('payment_amount');
-
-    // Ensure payment doesn't exceed total amount
-    if ($paymentAmount > $debtor->total_amount) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Payment amount cannot exceed total debt.',
-        ], 400);
-    }
-
-    // Check if payment is before due date
-    $isDueDateEarly = now()->lessThan($debtor->due_date);
-
-    // Find associated debtor contact
-    $debtorContact = DebtorContact::where('email', $debtor->email)
-        ->where('usr_id', Auth::id())
-        ->first();
-
-    // Deduct payment from total amount
-    $debtor->total_amount -= $paymentAmount;
-
-    // If total amount is zero or less, mark as paid
-    if ($debtor->total_amount <= 0) {
-        $debtor->is_paid = true;
-        $debtor->total_amount = 0;
-    }
-
-    // Save the updated debtor record
-    $debtor->save();
-
-    // Update credit score if paid early
-    if ($isDueDateEarly && $debtorContact) {
-        // Ensure credit score doesn't exceed 100
-        $debtorContact->credit_score = min(100, $debtorContact->credit_score + 2);
-        $debtorContact->save();
-    }
-
-    // Send confirmation email
-    try {
-        Mail::to($debtor->email)->send(new PaymentConfirmationMail($debtor, $paymentAmount));
-    } catch (\Exception $e) {
-        // Log email sending failure but don't interrupt the payment process
-        \Log::error('Failed to send payment confirmation email: ' . $e->getMessage());
-    }
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Payment recorded successfully.',
-        'data' => [
-            'debtor' => $debtor,
-            'payment_amount' => $paymentAmount,
-            'remaining_balance' => $debtor->total_amount,
-            'credit_score_updated' => $isDueDateEarly ? 'Yes' : 'No'
-        ]
-    ]);
-}
-}
-
+}    
