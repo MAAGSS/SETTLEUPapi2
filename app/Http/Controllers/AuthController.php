@@ -14,122 +14,115 @@ use Illuminate\Support\Facades\Auth;
 class AuthController extends Controller
 {
     public function register(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'name' => 'required|string|max:255',
-        'email' => 'required|string|email|max:255|unique:users',
-        'password' => 'required|string|min:8',
-    ]);
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json($validator->errors(), 400);
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
+        }
+
+        $otp = rand(100000, 999999);
+
+        cache()->put('otp_' . $request->email, [
+            'otp' => $otp,
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password)
+        ], 300); // Data expires in 5 minutes
+
+        Mail::to($request->email)->send(new OtpMail($otp));
+
+        return response()->json(['message' => 'OTP sent to your email']);
     }
 
+    public function verifyOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'otp' => 'required|digits:6',
+        ]);
 
-    $otp = rand(100000, 999999);
-    
-    
-    cache()->put('otp_'.$request->email, [
-        'otp' => $otp,
-        'name' => $request->name,
-        'email' => $request->email,
-        'password' => Hash::make($request->password)
-    ], 300); // Data expires in 5 minutes
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
+        }
 
+        $email = $request->header('Email');
 
-    Mail::to($request->email)->send(new OtpMail($otp));
+        $cachedData = cache()->get('otp_' . $email);
 
-    return response()->json(['message' => 'OTP sent to your email']);
-}
+        if (!$cachedData || $cachedData['otp'] != $request->otp) {
+            return response()->json(['message' => 'Invalid OTP or OTP expired'], 400);
+        }
 
+        $user = User::create([
+            'name' => $cachedData['name'],
+            'email' => $cachedData['email'],
+            'password' => $cachedData['password'],
+        ]);
 
+        cache()->forget('otp_' . $email);
 
-public function verifyOtp(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'otp' => 'required|digits:6',
-    ]);
+        $token = $user->createToken('Personal Access Token')->plainTextToken;
 
-    if ($validator->fails()) {
-        return response()->json($validator->errors(), 400);
+        return response()->json(['user' => $user, 'token' => $token], 200);
     }
 
-    $email = $request->header('Email'); 
+    public function login(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string'
+        ]);
 
+        if (!Auth::attempt($credentials)) {
+            return response()->json([
+                'message' => 'Invalid login credentials'
+            ], 401);
+        }
 
-    $cachedData = cache()->get('otp_'.$email);
+        $user = $request->user();
+        $token = $user->createToken('API Token')->plainTextToken;
 
-
-    if (!$cachedData || $cachedData['otp'] != $request->otp) {
-        return response()->json(['message' => 'Invalid OTP or OTP expired'], 400);
-    }
-
-
-    $user = User::create([
-        'name' => $cachedData['name'],
-        'email' => $cachedData['email'],
-        'password' => $cachedData['password'],
-    ]);
-
-
-    cache()->forget('otp_'.$email);
-
-
-    $token = $user->createToken('Personal Access Token')->plainTextToken;
-
-    return response()->json(['user' => $user, 'token' => $token], 200);
-}
-public function login(Request $request)
-{
-    $credentials = $request->validate([
-        'email' => 'required|email',
-        'password' => 'required|string'
-    ]);
-
-    if (!Auth::attempt($credentials)) {
         return response()->json([
-            'message' => 'Invalid login credentials'
-        ], 401);
+            'user' => $user,
+            'token' => $token
+        ]);
     }
 
-    $user = $request->user();
-    $token = $user->createToken('API Token')->plainTextToken;
+    public function verifyLoginOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'otp' => 'required|digits:6',
+        ]);
 
-    return response()->json([
-        'user' => $user,
-        'token' => $token
-    ]);
-}
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
+        }
 
-// otp for login if want
-public function verifyLoginOtp(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'otp' => 'required|digits:6',
-    ]);
+        $email = $request->header('Email');
 
-    if ($validator->fails()) {
-        return response()->json($validator->errors(), 400);
+        $cachedOtp = cache()->get('otp_login_' . $email);
+
+        if (!$cachedOtp || $cachedOtp != $request->otp) {
+            return response()->json(['message' => 'Invalid OTP or OTP expired'], 400);
+        }
+
+        cache()->forget('otp_login_' . $email);
+
+        $user = User::where('email', $email)->first();
+        $token = $user->createToken('Personal Access Token')->plainTextToken;
+
+        return response()->json(['message' => 'Login successful', 'user' => $user, 'token' => $token], 200);
     }
 
+    public function logout(Request $request)
+    {
+        // Revoke the token that was used to authenticate the current request
+        $request->user()->currentAccessToken()->delete();
 
-    $email = $request->header('Email');
-
-
-    $cachedOtp = cache()->get('otp_login_'.$email);
-
-    if (!$cachedOtp || $cachedOtp != $request->otp) {
-        return response()->json(['message' => 'Invalid OTP or OTP expired'], 400);
+        return response()->json(['message' => 'Logged out successfully'], 200);
     }
-
-
-    cache()->forget('otp_login_'.$email);
-
-
-    $user = User::where('email', $email)->first();
-    $token = $user->createToken('Personal Access Token')->plainTextToken;
-
-    return response()->json(['message' => 'Login successful', 'user' => $user, 'token' => $token], 200);
-}
-
 }
