@@ -7,6 +7,7 @@ use App\Http\Controllers\SMSController;
 use App\Http\Controllers\DebtorController;
 
 
+Route::middleware('auth:sanctum')->prefix('debtors')->group(function () {
     Route::post('/', [DebtorController::class, 'store']);
     Route::get('/', [DebtorController::class, 'index']);
     Route::get('/receivables', [DebtorController::class, 'receivables']);
@@ -16,6 +17,7 @@ use App\Http\Controllers\DebtorController;
     Route::patch('/{id}/archive', [DebtorController::class, 'archive']);
     Route::post('/{id}/make-payment', [DebtorController::class, 'makePayment']);
     Route::get('/contacts', [DebtorController::class, 'showContacts']);
+});
     
 Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
 Route::post('/send-sms-reminder/{debtorId}', [SMSController::class, 'sendReminder']);

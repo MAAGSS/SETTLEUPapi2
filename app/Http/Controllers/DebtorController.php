@@ -287,8 +287,7 @@ public function showContacts(Request $request)
             ->where('usr_id', Auth::id())
             ->first();
     
-        // Start a database transaction for consistency
-        \DB::beginTransaction();
+        
     
         try {
             // Deduct the payment amount from the total debt

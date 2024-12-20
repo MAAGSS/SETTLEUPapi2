@@ -14,30 +14,22 @@ use Illuminate\Support\Facades\Auth;
 class AuthController extends Controller
 {
     public function register(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-        ]);
+{
+    $validatedData = $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:users',
+        'password' => 'required|string|min:8',
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
-        }
+    $user = User::create([
+        'name' => $validatedData['name'],
+        'email' => $validatedData['email'],
+        'password' => bcrypt($validatedData['password']), // Ensure password is hashed
+    ]);
 
-        $otp = rand(100000, 999999);
+    return response()->json(['message' => 'User registered successfully'], 201);
+}
 
-        cache()->put('otp_' . $request->email, [
-            'otp' => $otp,
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password)
-        ], 300); // Data expires in 5 minutes
-
-        Mail::to($request->email)->send(new OtpMail($otp));
-
-        return response()->json(['message' => 'OTP sent to your email']);
-    }
 
     public function verifyOtp(Request $request)
     {
@@ -73,7 +65,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'email' => 'required|email',
+            'name' => 'required',
             'password' => 'required|string'
         ]);
 
